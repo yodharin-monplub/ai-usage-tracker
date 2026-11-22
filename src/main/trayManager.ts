@@ -25,7 +25,10 @@ export class TrayManager {
   }
 
   init(appRootDir: string): void {
+    const unpackedRoot = appRootDir.replace('app.asar', 'app.asar.unpacked');
     const iconCandidates = [
+      path.join(unpackedRoot, 'assets', 'tray-icon.png'),
+      path.join(unpackedRoot, 'assets', 'icon.png'),
       path.join(appRootDir, 'assets', 'tray-icon.png'),
       path.join(appRootDir, 'assets', 'icon.png')
     ];

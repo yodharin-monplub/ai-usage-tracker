@@ -20,6 +20,7 @@ let sqlJsPromise: Promise<SqlJsStatic> | null = null;
 
 function resolveSqlWasmPath(): string {
   const candidates = [
+    path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 'sql-wasm.wasm'),
     path.join(__dirname, 'sql-wasm.wasm'),
     path.resolve(__dirname, '../../../node_modules/sql.js/dist/sql-wasm.wasm'),
     path.join(process.cwd(), 'dist-electron', 'sql-wasm.wasm'),

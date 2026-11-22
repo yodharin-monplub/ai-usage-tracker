@@ -27,6 +27,18 @@ A lightweight, obsidian-themed Windows desktop widget & system tray application 
 
 ---
 
+## Download (Windows `.exe`)
+
+Prebuilt Windows binaries are available on the [GitHub Releases](https://github.com/yodharin-monplub/ai-usage-tracker/releases/latest) page:
+
+- **`AI-Tracker-0.1.0-portable.exe`** — Standalone portable app (download & double-click, no installation or Node.js required).
+- **`AI-Tracker-Setup-0.1.0.exe`** — Standard Windows installer with Start Menu and Desktop shortcuts.
+- **`README.txt`** — Plain-text user guide included alongside the release binaries.
+
+> **SmartScreen Note:** Because the open-source Windows build is unsigned, Windows SmartScreen may ask for confirmation on first run (**More info → Run anyway**).
+
+---
+
 ## Multi-Account CLI Setup Tips
 
 Each provider supports isolated profile folders via environment variables, letting you configure separate accounts in **AI Tracker**:

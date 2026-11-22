@@ -15,7 +15,8 @@
     "smoke": "node scripts/launch-electron.mjs --smoke",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "package:win": "npm run build && electron-builder --win --dir"
+    "package:win": "npm run build && electron-builder --win --dir",
+    "package:exe": "npm run build && electron-builder --win portable nsis --x64"
   },
   "build": {
     "appId": "org.actuarialtutor.ai-tracker",
@@ -23,13 +24,20 @@
     "directories": {
       "output": "release"
     },
+    "asarUnpack": [
+      "assets/**",
+      "dist-electron/sql-wasm.wasm"
+    ],
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
       "assets/**/*",
-      "package.json"
+      "package.json",
+      "!dist-electron/*.map",
+      "!node_modules/**"
     ],
     "win": {
+      "signAndEditExecutable": false,
       "target": [
         {
           "target": "nsis",
@@ -45,6 +53,16 @@
         }
       ],
       "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "AI-Tracker-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "AI-Tracker-${version}-portable.${ext}"
     }
   },
   "dependencies": {

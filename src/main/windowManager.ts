@@ -76,7 +76,12 @@ export class WindowManager {
       defaultSize.height
     );
 
-    const iconPath = path.join(appRootDir, 'assets', 'icon.png');
+    const unpackedRoot = appRootDir.replace('app.asar', 'app.asar.unpacked');
+    const iconCandidates = [
+      path.join(unpackedRoot, 'assets', 'icon.png'),
+      path.join(appRootDir, 'assets', 'icon.png')
+    ];
+    const iconPath = iconCandidates.find((p) => existsSync(p));
     this.win = new BrowserWindow({
       x: initialBounds.x,
       y: initialBounds.y,
@@ -92,7 +97,7 @@ export class WindowManager {
       skipTaskbar: false,
       alwaysOnTop: settings.alwaysOnTop,
       opacity: settings.opacity,
-      icon: existsSync(iconPath) ? iconPath : undefined,
+      icon: iconPath,
       webPreferences: {
         preload: path.join(__dirname, 'preload.cjs'),
         contextIsolation: true,
