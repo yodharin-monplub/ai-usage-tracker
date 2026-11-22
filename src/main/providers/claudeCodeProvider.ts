@@ -227,6 +227,8 @@ export class ClaudeCodeProvider implements UsageProviderAdapter {
     const metrics = createEmptyMetrics();
     const byModel = new Map<string, ModelUsageItem>();
     let hasLocalData = false;
+    let oldestRollingMs = Infinity;
+    let oldestWeekMs = Infinity;
 
     if (account.mode !== 'manual' && account.mode !== 'live-api' && account.profileDir) {
       const projectsDir = path.join(account.profileDir, 'projects');
@@ -253,6 +255,7 @@ export class ClaudeCodeProvider implements UsageProviderAdapter {
         if (ev.timestampMs < weekStartMs) continue;
 
         hasLocalData = true;
+        if (ev.timestampMs < oldestWeekMs) oldestWeekMs = ev.timestampMs;
         const cost = estimateCostUsd(
           ev.model,
           ev.inputTokens,
@@ -278,6 +281,7 @@ export class ClaudeCodeProvider implements UsageProviderAdapter {
           metrics.rollingTokens += ev.totalTokens;
           metrics.rollingRequests += 1;
           metrics.rollingCostUsd += cost;
+          if (ev.timestampMs < oldestRollingMs) oldestRollingMs = ev.timestampMs;
         }
 
         const prevModel = byModel.get(ev.model) ?? {
@@ -310,13 +314,23 @@ export class ClaudeCodeProvider implements UsageProviderAdapter {
       liveNote = liveOutcome.note;
     }
 
+    const rollingResetAtIso =
+      oldestRollingMs < Infinity
+        ? new Date(oldestRollingMs + account.limits.rollingWindowHours * 3_600_000).toISOString()
+        : undefined;
+    const weeklyResetAtIso =
+      oldestWeekMs < Infinity
+        ? new Date(oldestWeekMs + 7 * 86_400_000).toISOString()
+        : undefined;
+
     const resolved = resolveQuotas(
       account,
       metrics,
       liveResult,
       undefined,
       ctx.nowMs,
-      hasLocalData
+      hasLocalData,
+      { rollingResetAtIso, weeklyResetAtIso }
     );
 
     const hasAnyData =

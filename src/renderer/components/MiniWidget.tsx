@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import {
   formatCountdown,
+  formatResetDate,
   formatTokens,
   formatUsd,
   getQuotaSeverity
@@ -254,28 +255,41 @@ export function MiniWidget({
                 </div>
 
                 {snap?.secondaryQuota && (
-                  <div className="row-between tiny muted">
-                    <span className="truncate">{snap.secondaryQuota.label}</span>
-                    <div className="row-center" style={{ width: 110 }}>
-                      <div className="progress-track thin" style={{ flex: 1 }}>
-                        <div
-                          className={`progress-fill ${getQuotaSeverity(snap.secondaryQuota.usedPercent)}`}
-                          style={{
-                            width: `${Math.min(100, Math.max(0, snap.secondaryQuota.usedPercent))}%`
-                          }}
-                        />
-                      </div>
+                  <div>
+                    <div className="row-between tiny muted" style={{ marginBottom: 3 }}>
+                      <span className="truncate">{snap.secondaryQuota.label}</span>
                       <span className="tabular">
                         {snap.secondaryQuota.usedPercent.toFixed(0)}%
+                        {snap.secondaryQuota.resetAtIso
+                          ? ` · ↻ ${formatResetDate(snap.secondaryQuota.resetAtIso)}`
+                          : ''}
                       </span>
+                    </div>
+                    <div className="progress-track thin">
+                      <div
+                        className={`progress-fill ${getQuotaSeverity(snap.secondaryQuota.usedPercent)}`}
+                        style={{
+                          width: `${Math.min(100, Math.max(0, snap.secondaryQuota.usedPercent))}%`
+                        }}
+                      />
                     </div>
                   </div>
                 )}
 
                 <div className="row-between tiny muted">
                   <span className="truncate">{summarizeToday(acc, snap)}</span>
-                  <span className="tabular" style={{ flexShrink: 0 }}>
-                    {countdown ? `↻ ${countdown}` : ''}
+                  <span
+                    className="tabular"
+                    style={{ flexShrink: 0 }}
+                    title={
+                      snap?.primaryQuota.resetAtIso
+                        ? `Resets ${formatResetDate(snap.primaryQuota.resetAtIso)}`
+                        : undefined
+                    }
+                  >
+                    {countdown
+                      ? `↻ ${formatResetDate(snap?.primaryQuota.resetAtIso)} (${countdown})`
+                      : ''}
                   </span>
                 </div>
               </div>

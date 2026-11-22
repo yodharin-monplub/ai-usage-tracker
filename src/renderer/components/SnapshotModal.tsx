@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { ClipboardPaste, X } from 'lucide-react';
-import { formatCountdown } from '../../shared/formatters';
+import { formatResetLabel } from '../../shared/formatters';
 import {
   PROVIDER_META,
   type AccountConfig,
@@ -21,7 +21,7 @@ const SAMPLE_BY_PROVIDER: Record<AccountConfig['provider'], string> = {
   'claude-code':
     'Current session: 42% used (Resets in 2h 15m)\nCurrent week (all models): 18% used (Resets in 4d 3h)',
   antigravity:
-    'Gemini Models: 75% remaining (resets in 3h 20m)\nClaude / GPT Models: 40% used (resets in 1h 50m)',
+    'Gemini Models\nWeekly Limit Remaining\nIt will fully refresh in 6 days, 19 hours.\n79%\nFive Hour Limit Remaining\nIt will fully refresh in 4 hours, 12 minutes.\n85%\nClaude and GPT models\nWeekly Limit Remaining\n100%',
   gemini: 'Daily quota: 28% used (resets in 11h 40m)',
   codex:
     '5h limit: 64% remaining (resets in 3h 10m)\nWeekly limit: 82% left (resets in 5d 12h)'
@@ -41,6 +41,8 @@ export function SnapshotModal({ account, onClose, onApply }: SnapshotModalProps)
       ? String(existing.secondaryUsedPercent)
       : ''
   );
+  const [secResetDays, setSecResetDays] = useState<string>('6');
+  const [secResetHours, setSecResetHours] = useState<string>('0');
 
   const parsed = useMemo(() => parseUsageSnapshotText(rawText), [rawText]);
   const meta = PROVIDER_META[account.provider];
@@ -52,21 +54,29 @@ export function SnapshotModal({ account, onClose, onApply }: SnapshotModalProps)
       return;
     }
 
+    const nowMs = Date.now();
     const h = Math.max(0, Number(resetInHours) || 0);
     const m = Math.max(0, Number(resetInMins) || 0);
     const totalMs = (h * 60 + m) * 60_000;
     const resetAtIso =
-      totalMs > 0 ? new Date(Date.now() + totalMs).toISOString() : undefined;
+      totalMs > 0 ? new Date(nowMs + totalMs).toISOString() : undefined;
+
     const secNum = Number(secondaryUsed);
+    const hasSecondary = secondaryUsed.trim() && Number.isFinite(secNum);
+    const sd = Math.max(0, Number(secResetDays) || 0);
+    const sh = Math.max(0, Number(secResetHours) || 0);
+    const secMs = (sd * 24 + sh) * 3_600_000;
+    const secResetAtIso =
+      hasSecondary && secMs > 0 ? new Date(nowMs + secMs).toISOString() : undefined;
 
     onApply({
       usedPercent: manualUsed,
-      label: manualLabel.trim() || 'Manual Quota',
+      label: manualLabel.trim() || `${account.limits.rollingWindowHours}h Manual Quota`,
       resetAtIso,
-      secondaryUsedPercent:
-        secondaryUsed.trim() && Number.isFinite(secNum) ? secNum : undefined,
-      secondaryLabel: secondaryUsed.trim() ? 'Weekly Quota' : undefined,
-      updatedAtIso: new Date().toISOString()
+      secondaryUsedPercent: hasSecondary ? secNum : undefined,
+      secondaryLabel: hasSecondary ? '7d Weekly Quota' : undefined,
+      secondaryResetAtIso: secResetAtIso,
+      updatedAtIso: new Date(nowMs).toISOString()
     });
   };
 
@@ -88,7 +98,7 @@ export function SnapshotModal({ account, onClose, onApply }: SnapshotModalProps)
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="field">
             <div className="row-between">
-              <label>Paste CLI /usage, /quota, or /status output</label>
+              <label>Paste CLI /usage, /quota, /status, or Antigravity Quota text</label>
               <button
                 type="button"
                 className="icon-btn tiny"
@@ -111,14 +121,14 @@ export function SnapshotModal({ account, onClose, onApply }: SnapshotModalProps)
               <div>
                 Primary ({parsed.label}):{' '}
                 <strong className="tabular">{parsed.usedPercent}% used</strong>
-                {parsed.resetAtIso ? ` · resets in ${formatCountdown(parsed.resetAtIso)}` : ''}
+                {parsed.resetAtIso ? ` · ${formatResetLabel(parsed.resetAtIso)}` : ''}
               </div>
               {typeof parsed.secondaryUsedPercent === 'number' && (
                 <div>
-                  Secondary ({parsed.secondaryLabel ?? 'Weekly'}):{' '}
+                  7d Weekly ({parsed.secondaryLabel ?? 'Weekly'}):{' '}
                   <strong className="tabular">{parsed.secondaryUsedPercent}% used</strong>
                   {parsed.secondaryResetAtIso
-                    ? ` · resets in ${formatCountdown(parsed.secondaryResetAtIso)}`
+                    ? ` · ${formatResetLabel(parsed.secondaryResetAtIso)}`
                     : ''}
                 </div>
               )}
@@ -156,7 +166,7 @@ export function SnapshotModal({ account, onClose, onApply }: SnapshotModalProps)
                   />
                 </div>
                 <div className="field">
-                  <label>Resets in (Hours / Mins)</label>
+                  <label>Primary Resets in (H / M)</label>
                   <div className="row-center">
                     <input
                       type="number"
@@ -179,7 +189,7 @@ export function SnapshotModal({ account, onClose, onApply }: SnapshotModalProps)
                   </div>
                 </div>
                 <div className="field">
-                  <label>Secondary / Weekly % Used (Optional)</label>
+                  <label>7d Weekly % Used (Optional)</label>
                   <input
                     type="number"
                     min={0}
@@ -187,8 +197,31 @@ export function SnapshotModal({ account, onClose, onApply }: SnapshotModalProps)
                     className="input"
                     value={secondaryUsed}
                     onChange={(e) => setSecondaryUsed(e.target.value)}
-                    placeholder="e.g. 22"
+                    placeholder="e.g. 21"
                   />
+                </div>
+                <div className="field full">
+                  <label>7d Weekly Resets in (Days / Hours)</label>
+                  <div className="row-center">
+                    <input
+                      type="number"
+                      min={0}
+                      max={30}
+                      className="input"
+                      value={secResetDays}
+                      onChange={(e) => setSecResetDays(e.target.value)}
+                    />
+                    <span className="muted">d</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={23}
+                      className="input"
+                      value={secResetHours}
+                      onChange={(e) => setSecResetHours(e.target.value)}
+                    />
+                    <span className="muted">h</span>
+                  </div>
                 </div>
               </div>
             </div>

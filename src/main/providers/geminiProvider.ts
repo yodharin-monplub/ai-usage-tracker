@@ -253,6 +253,8 @@ export class GeminiProvider implements UsageProviderAdapter {
     const metrics = createEmptyMetrics();
     const byModel = new Map<string, ModelUsageItem>();
     let hasLocalData = false;
+    let oldestRollingMs = Infinity;
+    let oldestWeekMs = Infinity;
 
     if (account.mode !== 'manual' && account.mode !== 'live-api' && account.profileDir) {
       const tmpDir = path.join(account.profileDir, 'tmp');
@@ -275,6 +277,7 @@ export class GeminiProvider implements UsageProviderAdapter {
         for (const ev of events) {
           if (ev.timestampMs > ctx.nowMs + 60_000 || ev.timestampMs < weekStartMs) continue;
           hasLocalData = true;
+          if (ev.timestampMs < oldestWeekMs) oldestWeekMs = ev.timestampMs;
 
           const nonCachedIn = Math.max(0, ev.inputTokens - ev.cachedTokens);
           const cost = estimateCostUsd(
@@ -301,6 +304,7 @@ export class GeminiProvider implements UsageProviderAdapter {
             metrics.rollingTokens += ev.totalTokens;
             metrics.rollingRequests += 1;
             metrics.rollingCostUsd += cost;
+            if (ev.timestampMs < oldestRollingMs) oldestRollingMs = ev.timestampMs;
           }
 
           const prev = byModel.get(ev.model) ?? {
@@ -334,13 +338,23 @@ export class GeminiProvider implements UsageProviderAdapter {
       liveNote = liveOutcome.note;
     }
 
+    const rollingResetAtIso =
+      oldestRollingMs < Infinity
+        ? new Date(oldestRollingMs + account.limits.rollingWindowHours * 3_600_000).toISOString()
+        : undefined;
+    const weeklyResetAtIso =
+      oldestWeekMs < Infinity
+        ? new Date(oldestWeekMs + 7 * 86_400_000).toISOString()
+        : undefined;
+
     const resolved = resolveQuotas(
       account,
       metrics,
       liveResult,
       undefined,
       ctx.nowMs,
-      hasLocalData
+      hasLocalData,
+      { rollingResetAtIso, weeklyResetAtIso }
     );
 
     const hasAnyData =

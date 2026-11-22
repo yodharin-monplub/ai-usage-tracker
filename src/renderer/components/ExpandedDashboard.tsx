@@ -19,6 +19,8 @@ import {
 import {
   formatCountdown,
   formatRelativeAge,
+  formatResetDate,
+  formatResetLabel,
   formatTokens,
   formatUsd,
   getQuotaSeverity
@@ -277,7 +279,6 @@ export function ExpandedDashboard({
                   const meta = PROVIDER_META[acc.provider];
                   const snap = snapshots[acc.id];
                   const used = snap?.primaryQuota.usedPercent ?? 0;
-                  const countdown = formatCountdown(snap?.primaryQuota.resetAtIso, nowMs);
 
                   return (
                     <div key={acc.id} className="card">
@@ -319,7 +320,6 @@ export function ExpandedDashboard({
                           </span>
                           <span className="tabular" style={{ fontWeight: 600 }}>
                             {used.toFixed(1)}% used
-                            {countdown ? ` · ↻ ${countdown}` : ''}
                           </span>
                         </div>
                         <div className="progress-track">
@@ -328,17 +328,21 @@ export function ExpandedDashboard({
                             style={{ width: `${Math.min(100, Math.max(0, used))}%` }}
                           />
                         </div>
+                        <div className="tiny muted tabular" style={{ marginTop: 3 }}>
+                          {snap?.primaryQuota.resetAtIso
+                            ? formatResetLabel(snap.primaryQuota.resetAtIso, nowMs)
+                            : used === 0
+                              ? 'Ready · no active 5h window'
+                              : ''}
+                        </div>
                       </div>
 
                       {snap?.secondaryQuota && (
                         <div>
                           <div className="row-between tiny muted" style={{ marginBottom: 3 }}>
                             <span>{snap.secondaryQuota.label}</span>
-                            <span className="tabular">
-                              {snap.secondaryQuota.usedPercent.toFixed(1)}%
-                              {snap.secondaryQuota.resetAtIso
-                                ? ` · ↻ ${formatCountdown(snap.secondaryQuota.resetAtIso, nowMs)}`
-                                : ''}
+                            <span className="tabular" style={{ fontWeight: 600 }}>
+                              {snap.secondaryQuota.usedPercent.toFixed(1)}% used
                             </span>
                           </div>
                           <div className="progress-track thin">
@@ -349,22 +353,33 @@ export function ExpandedDashboard({
                               }}
                             />
                           </div>
+                          {snap.secondaryQuota.resetAtIso && (
+                            <div className="tiny muted tabular" style={{ marginTop: 2 }}>
+                              {formatResetLabel(snap.secondaryQuota.resetAtIso, nowMs)}
+                            </div>
+                          )}
                         </div>
                       )}
 
                       {snap?.pools && snap.pools.length > 0 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {snap.pools.slice(0, 3).map((pool) => (
+                          {snap.pools.slice(0, 4).map((pool) => (
                             <div key={pool.name} className="row-between tiny">
                               <span className="muted truncate">{pool.name}</span>
                               <span className="tabular">
                                 {pool.usedPercent.toFixed(0)}%
                                 {pool.resetAtIso
-                                  ? ` · ${formatCountdown(pool.resetAtIso, nowMs)}`
+                                  ? ` · ${formatResetDate(pool.resetAtIso)} (${formatCountdown(pool.resetAtIso, nowMs)})`
                                   : ''}
                               </span>
                             </div>
                           ))}
+                        </div>
+                      )}
+
+                      {acc.provider === 'antigravity' && snap?.sourceUsed === 'local' && (
+                        <div className="tiny muted">
+                          Local step estimate — click <strong>/usage</strong> to paste exact server % from Antigravity.
                         </div>
                       )}
 

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import path from 'node:path';
 import {
   DEFAULT_APP_SETTINGS,
+  PROVIDER_META,
   type AccountConfig,
   type AppSettings,
   type WindowBounds
@@ -62,6 +63,8 @@ export class AppStore {
   private config: PersistedConfig;
   private secrets: Record<string, string>;
 
+  private migratedOnLoad = false;
+
   constructor(dataDir: string, cipher?: SecretCipher) {
     mkdirSync(dataDir, { recursive: true });
     this.configPath = path.join(dataDir, 'ai-tracker-config.json');
@@ -69,6 +72,33 @@ export class AppStore {
     this.cipher = cipher;
     this.config = this.loadConfig();
     this.secrets = this.loadSecrets();
+    if (this.migratedOnLoad) {
+      this.saveConfig();
+    }
+  }
+
+  private migrateAccounts(rawAccounts: AccountConfig[]): AccountConfig[] {
+    return rawAccounts.map((acc) => {
+      const meta = PROVIDER_META[acc.provider];
+      if (!meta || !acc.limits) return acc;
+      const nextLimits = { ...acc.limits };
+      let changed = false;
+      if (!nextLimits.weeklyLimitValue || nextLimits.weeklyLimitValue <= 0) {
+        nextLimits.weeklyLimitValue = meta.defaultWeeklyLimitValue;
+        changed = true;
+      }
+      if (
+        acc.provider === 'antigravity' &&
+        nextLimits.rollingLimitMetric === 'steps' &&
+        nextLimits.rollingLimitValue === 250
+      ) {
+        nextLimits.rollingLimitValue = meta.defaultLimitValue;
+        changed = true;
+      }
+      if (!changed) return acc;
+      this.migratedOnLoad = true;
+      return { ...acc, limits: nextLimits };
+    });
   }
 
   private loadConfig(): PersistedConfig {
@@ -83,13 +113,16 @@ export class AppStore {
     try {
       const raw = readFileSync(this.configPath, 'utf8');
       const parsed = JSON.parse(raw) as Partial<PersistedConfig>;
+      const accounts = Array.isArray(parsed.accounts)
+        ? this.migrateAccounts(parsed.accounts)
+        : [];
       return {
         version: 1,
         settings: {
           ...DEFAULT_APP_SETTINGS,
           ...(parsed.settings ?? {})
         },
-        accounts: Array.isArray(parsed.accounts) ? parsed.accounts : [],
+        accounts,
         windowBounds: parsed.windowBounds
       };
     } catch {

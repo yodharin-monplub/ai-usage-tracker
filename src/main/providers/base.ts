@@ -1,14 +1,15 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { clampPercent } from '../../shared/formatters';
-import type {
-  AccountConfig,
-  AccountUsageSnapshot,
-  ManualQuotaPool,
-  ProviderId,
-  QuotaWindow,
-  UsageMetrics,
-  UsageSource
+import {
+  PROVIDER_META,
+  type AccountConfig,
+  type AccountUsageSnapshot,
+  type ManualQuotaPool,
+  type ProviderId,
+  type QuotaWindow,
+  type UsageMetrics,
+  type UsageSource
 } from '../../shared/types';
 
 export interface ProviderContext {
@@ -229,23 +230,35 @@ export function getStartOfLocalDayMs(nowMs: number): number {
   return d.getTime();
 }
 
+const MIN_VALID_TIMESTAMP_MS = 946_684_800_000; // 2000-01-01T00:00:00Z
+
 export function parseTimestampMs(raw: unknown): number | null {
   if (typeof raw === 'number' && Number.isFinite(raw)) {
-    // Handle Unix seconds vs milliseconds
-    return raw < 10_000_000_000 ? raw * 1000 : raw;
+    const ms = raw < 10_000_000_000 ? raw * 1000 : raw;
+    return ms >= MIN_VALID_TIMESTAMP_MS ? ms : null;
   }
   if (typeof raw === 'string' && raw.trim()) {
     const trimmed = raw.trim();
     if (/^\d+(?:\.\d+)?$/.test(trimmed)) {
       const num = Number(trimmed);
-      return num < 10_000_000_000 ? num * 1000 : num;
+      const ms = num < 10_000_000_000 ? num * 1000 : num;
+      return ms >= MIN_VALID_TIMESTAMP_MS ? ms : null;
     }
-    // Handle SQLite datetime "YYYY-MM-DD HH:MM:SS" cleanly (treat as UTC if no tz)
-    const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(trimmed)
-      ? `${trimmed.replace(' ', 'T')}Z`
-      : trimmed;
+    let normalized = trimmed;
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(normalized)) {
+      normalized = normalized.replace(' ', 'T');
+    }
+    // Truncate >3 sub-millisecond digits (e.g. Go/SQLite 7-digit nanoseconds)
+    normalized = normalized.replace(/(\.\d{3})\d+/, '$1');
+    // Strip optional Go monotonic clock reading
+    normalized = normalized.replace(/\s+m=[+-].*$/, '');
+    // Append Z only if no timezone designator is present
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(normalized)) {
+      normalized += 'Z';
+    }
     const ms = Date.parse(normalized);
-    return Number.isNaN(ms) ? null : ms;
+    if (Number.isNaN(ms) || ms < MIN_VALID_TIMESTAMP_MS) return null;
+    return ms;
   }
   return null;
 }
@@ -274,23 +287,48 @@ export function isManualSnapshotActive(account: AccountConfig, nowMs: number): b
   return Number.isNaN(resetMs) || resetMs > nowMs;
 }
 
+export interface LocalResetHints {
+  rollingResetAtIso?: string;
+  weeklyResetAtIso?: string;
+}
+
 export function resolveQuotas(
   account: AccountConfig,
   metrics: UsageMetrics,
   liveResult: LiveQuotaResult | undefined,
   embeddedQuota: { primary?: QuotaWindow; secondary?: QuotaWindow } | undefined,
   nowMs: number,
-  hasLocalData: boolean
+  hasLocalData: boolean,
+  localResets?: LocalResetHints
 ): {
   primaryQuota: QuotaWindow;
-  secondaryQuota?: QuotaWindow;
+  secondaryQuota: QuotaWindow;
   pools?: ManualQuotaPool[];
   sourceUsed: UsageSource;
 } {
+  const weeklyLimit =
+    account.limits.weeklyLimitValue && account.limits.weeklyLimitValue > 0
+      ? account.limits.weeklyLimitValue
+      : PROVIDER_META[account.provider].defaultWeeklyLimitValue;
+  const weeklyVal =
+    account.limits.rollingLimitMetric === 'cost_usd'
+      ? metrics.weekCostUsd
+      : account.limits.rollingLimitMetric === 'requests'
+        ? metrics.weekRequests
+        : account.limits.rollingLimitMetric === 'steps'
+          ? metrics.weekSteps
+          : metrics.weekTokens;
+  const localSecondary = buildQuotaWindow(
+    '7d Weekly Est.',
+    weeklyLimit > 0 ? clampPercent((weeklyVal / weeklyLimit) * 100) : 0,
+    localResets?.weeklyResetAtIso,
+    168
+  );
+
   if (liveResult) {
     return {
       primaryQuota: liveResult.primaryQuota,
-      secondaryQuota: liveResult.secondaryQuota,
+      secondaryQuota: liveResult.secondaryQuota ?? localSecondary,
       pools: liveResult.pools,
       sourceUsed: hasLocalData ? 'hybrid' : 'live'
     };
@@ -307,11 +345,12 @@ export function resolveQuotas(
     const secondaryQuota =
       typeof snap.secondaryUsedPercent === 'number'
         ? buildQuotaWindow(
-            snap.secondaryLabel || 'Weekly Quota',
+            snap.secondaryLabel || '7d Weekly Quota',
             snap.secondaryUsedPercent,
-            snap.secondaryResetAtIso
+            snap.secondaryResetAtIso ?? localResets?.weeklyResetAtIso,
+            168
           )
-        : undefined;
+        : localSecondary;
     return {
       primaryQuota,
       secondaryQuota,
@@ -323,7 +362,7 @@ export function resolveQuotas(
   if (embeddedQuota?.primary) {
     return {
       primaryQuota: embeddedQuota.primary,
-      secondaryQuota: embeddedQuota.secondary,
+      secondaryQuota: embeddedQuota.secondary ?? localSecondary,
       sourceUsed: 'local'
     };
   }
@@ -347,31 +386,15 @@ export function resolveQuotas(
   const limit = account.limits.rollingLimitValue;
   const pct = limit > 0 ? clampPercent((currentValue / limit) * 100) : 0;
   const primaryQuota = buildQuotaWindow(
-    `${account.limits.rollingWindowHours}h Local Cap`,
+    `${account.limits.rollingWindowHours}h Local Est.`,
     pct,
-    undefined,
+    localResets?.rollingResetAtIso,
     account.limits.rollingWindowHours
   );
 
-  let secondaryQuota: QuotaWindow | undefined;
-  if (account.limits.weeklyLimitValue && account.limits.weeklyLimitValue > 0) {
-    const weeklyVal =
-      account.limits.rollingLimitMetric === 'cost_usd'
-        ? metrics.weekCostUsd
-        : account.limits.rollingLimitMetric === 'requests'
-          ? metrics.weekRequests
-          : account.limits.rollingLimitMetric === 'steps'
-            ? metrics.weekSteps
-            : metrics.weekTokens;
-    secondaryQuota = buildQuotaWindow(
-      '7d Local Cap',
-      (weeklyVal / account.limits.weeklyLimitValue) * 100
-    );
-  }
-
   return {
     primaryQuota,
-    secondaryQuota,
+    secondaryQuota: localSecondary,
     sourceUsed: 'local'
   };
 }

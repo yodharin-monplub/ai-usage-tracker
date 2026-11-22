@@ -40,6 +40,28 @@ export function formatCountdown(resetAtIso?: string, nowMs = Date.now()): string
   return `${secs}s`;
 }
 
+export function formatResetDate(resetAtIso?: string): string {
+  if (!resetAtIso) return '';
+  const targetMs = Date.parse(resetAtIso);
+  if (Number.isNaN(targetMs)) return '';
+  return new Date(targetMs).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+export function formatResetLabel(resetAtIso?: string, nowMs = Date.now()): string {
+  if (!resetAtIso) return '';
+  const targetMs = Date.parse(resetAtIso);
+  if (Number.isNaN(targetMs)) return '';
+  if (targetMs <= nowMs) return 'Resetting soon';
+  const dateStr = formatResetDate(resetAtIso);
+  const countdown = formatCountdown(resetAtIso, nowMs);
+  return dateStr && countdown ? `Resets ${dateStr} (${countdown})` : countdown || dateStr;
+}
+
 export function formatRelativeAge(iso?: string, nowMs = Date.now()): string {
   if (!iso) return 'Never';
   const ts = Date.parse(iso);

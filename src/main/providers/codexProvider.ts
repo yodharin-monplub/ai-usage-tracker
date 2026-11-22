@@ -270,6 +270,8 @@ export class CodexProvider implements UsageProviderAdapter {
     const metrics = createEmptyMetrics();
     const byModel = new Map<string, ModelUsageItem>();
     let hasLocalData = false;
+    let oldestRollingMs = Infinity;
+    let oldestWeekMs = Infinity;
     let latestEmbeddedTs = 0;
     let embeddedPrimary: QuotaWindow | undefined;
     let embeddedSecondary: QuotaWindow | undefined;
@@ -304,6 +306,7 @@ export class CodexProvider implements UsageProviderAdapter {
 
           if (ev.timestampMs < weekStartMs || ev.totalTokens <= 0) continue;
           hasLocalData = true;
+          if (ev.timestampMs < oldestWeekMs) oldestWeekMs = ev.timestampMs;
 
           const nonCachedIn = Math.max(0, ev.inputTokens - ev.cachedInputTokens);
           const cost = estimateCostUsd(
@@ -330,6 +333,7 @@ export class CodexProvider implements UsageProviderAdapter {
             metrics.rollingTokens += ev.totalTokens;
             metrics.rollingRequests += 1;
             metrics.rollingCostUsd += cost;
+            if (ev.timestampMs < oldestRollingMs) oldestRollingMs = ev.timestampMs;
           }
 
           const prev = byModel.get(ev.model) ?? {
@@ -365,8 +369,12 @@ export class CodexProvider implements UsageProviderAdapter {
               if (ts === null || ts > ctx.nowMs + 60_000 || ts < weekStartMs) continue;
               hasLocalData = true;
               metrics.weekRequests += 1;
+              if (ts < oldestWeekMs) oldestWeekMs = ts;
               if (ts >= todayStartMs) metrics.todayRequests += 1;
-              if (ts >= rollingStartMs) metrics.rollingRequests += 1;
+              if (ts >= rollingStartMs) {
+                metrics.rollingRequests += 1;
+                if (ts < oldestRollingMs) oldestRollingMs = ts;
+              }
             } catch {
               continue;
             }
@@ -395,13 +403,23 @@ export class CodexProvider implements UsageProviderAdapter {
         ? { primary: embeddedPrimary, secondary: embeddedSecondary }
         : undefined;
 
+    const rollingResetAtIso =
+      oldestRollingMs < Infinity
+        ? new Date(oldestRollingMs + account.limits.rollingWindowHours * 3_600_000).toISOString()
+        : undefined;
+    const weeklyResetAtIso =
+      oldestWeekMs < Infinity
+        ? new Date(oldestWeekMs + 7 * 86_400_000).toISOString()
+        : undefined;
+
     const resolved = resolveQuotas(
       account,
       metrics,
       liveResult,
       embeddedActive,
       ctx.nowMs,
-      hasLocalData
+      hasLocalData,
+      { rollingResetAtIso, weeklyResetAtIso }
     );
 
     const hasAnyData =

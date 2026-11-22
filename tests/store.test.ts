@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -73,5 +73,42 @@ describe('AppStore', () => {
     reloaded.deleteAccount('acc-1');
     expect(reloaded.getAccounts()).toHaveLength(0);
     expect(reloaded.getAccountSecret('acc-1')).toBeNull();
+  });
+
+  it('migrates legacy accounts missing weeklyLimitValue and old 250-step Antigravity cap', () => {
+    const dataDir = mkdtempSync(path.join(os.tmpdir(), 'ai-tracker-migrate-'));
+    tempDirs.push(dataDir);
+
+    writeFileSync(
+      path.join(dataDir, 'ai-tracker-config.json'),
+      JSON.stringify({
+        version: 1,
+        accounts: [
+          {
+            id: 'legacy-agy',
+            provider: 'antigravity',
+            label: 'Antigravity CLI',
+            mode: 'hybrid',
+            profileDir: 'C:/tmp/agy',
+            liveSyncEnabled: false,
+            limits: {
+              rollingWindowHours: 5,
+              rollingLimitMetric: 'steps',
+              rollingLimitValue: 250
+            },
+            pinnedToWidget: true,
+            enabled: true,
+            createdAt: '2026-11-22T00:00:00.000Z',
+            updatedAt: '2026-11-22T00:00:00.000Z'
+          }
+        ]
+      }),
+      'utf8'
+    );
+
+    const store = new AppStore(dataDir, testCipher);
+    const accounts = store.getAccounts();
+    expect(accounts[0].limits.rollingLimitValue).toBe(25_000);
+    expect(accounts[0].limits.weeklyLimitValue).toBe(100_000);
   });
 });

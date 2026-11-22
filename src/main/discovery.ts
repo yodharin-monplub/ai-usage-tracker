@@ -216,7 +216,8 @@ export function createAccountFromDiscovered(
     limits: {
       rollingWindowHours: meta.defaultRollingHours,
       rollingLimitMetric: meta.defaultLimitMetric,
-      rollingLimitValue: meta.defaultLimitValue
+      rollingLimitValue: meta.defaultLimitValue,
+      weeklyLimitValue: meta.defaultWeeklyLimitValue
     },
     pinnedToWidget: true,
     enabled: true,

@@ -51,4 +51,42 @@ describe('usageSnapshotParser', () => {
 
     expect(parseUsageSnapshotText('No numbers here at all', nowMs)).toBeNull();
   });
+
+  it('parses multi-line Antigravity Models & Quota text with days/hours resets and pools', () => {
+    const raw = `
+      Gemini Models
+      Weekly Limit Remaining
+      You have used some of your weekly limit. It will fully refresh in 6 days, 19 hours.
+      79%
+      Five Hour Limit Remaining
+      You have used some of your 5-hour limit. It will fully refresh in 4 hours, 12 minutes.
+      85%
+      Claude and GPT models
+      Weekly Limit Remaining
+      100%
+      Five Hour Limit Remaining
+      100%
+      Gemini 4 Argon
+      Gemini 4 Argon Weekly Limit
+      You have used some of your weekly limit. It will fully refresh in 6 days, 22 hours.
+      41%
+    `;
+    const parsed = parseUsageSnapshotText(raw, nowMs);
+    expect(parsed).not.toBeNull();
+    // Five Hour Limit Remaining = 85% -> 15% used
+    expect(parsed!.usedPercent).toBe(15);
+    expect(Date.parse(parsed!.resetAtIso!)).toBe(nowMs + (4 * 60 + 12) * 60_000);
+    // Weekly Limit Remaining = 79% -> 21% used
+    expect(parsed!.secondaryUsedPercent).toBe(21);
+    expect(Date.parse(parsed!.secondaryResetAtIso!)).toBe(
+      nowMs + (6 * 24 + 19) * 3_600_000
+    );
+    expect(parsed!.pools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'Gemini Models', usedPercent: 21 }),
+        expect.objectContaining({ name: 'Claude and GPT models', usedPercent: 0 }),
+        expect.objectContaining({ name: 'Gemini 4 Argon', usedPercent: 59 })
+      ])
+    );
+  });
 });

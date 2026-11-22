@@ -18,6 +18,7 @@ export interface ProviderMeta {
   defaultRollingHours: number;
   defaultLimitMetric: LimitMetric;
   defaultLimitValue: number;
+  defaultWeeklyLimitValue: number;
   envVarHint: string;
   defaultPathHint: string;
   description: string;
@@ -39,6 +40,7 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
     defaultRollingHours: 5,
     defaultLimitMetric: 'cost_usd',
     defaultLimitValue: 20,
+    defaultWeeklyLimitValue: 140,
     envVarHint: 'CLAUDE_CONFIG_DIR (e.g. ~/.claude-personal, ~/.claude-work)',
     defaultPathHint: '~/.claude',
     description: 'Reads local JSONL project logs and optional OAuth 5h/7d quotas.'
@@ -50,7 +52,8 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
     accentColor: '#38bdf8',
     defaultRollingHours: 5,
     defaultLimitMetric: 'steps',
-    defaultLimitValue: 250,
+    defaultLimitValue: 25_000,
+    defaultWeeklyLimitValue: 100_000,
     envVarHint: 'Separate Antigravity profile folders under ~/.gemini/antigravity*',
     defaultPathHint: '~/.gemini/antigravity-cli',
     description: 'Reads conversation_summaries.db & history.jsonl read-only plus /usage snapshots.'
@@ -63,6 +66,7 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
     defaultRollingHours: 24,
     defaultLimitMetric: 'requests',
     defaultLimitValue: 1000,
+    defaultWeeklyLimitValue: 5000,
     envVarHint: 'GEMINI_CLI_HOME or GEMINI_DATA_DIR per account',
     defaultPathHint: '~/.gemini',
     description: 'Reads local tmp/*/chats logs and optional OAuth retrieveUserQuota buckets.'
@@ -75,6 +79,7 @@ export const PROVIDER_META: Record<ProviderId, ProviderMeta> = {
     defaultRollingHours: 5,
     defaultLimitMetric: 'tokens',
     defaultLimitValue: 2_000_000,
+    defaultWeeklyLimitValue: 15_000_000,
     envVarHint: 'CODEX_HOME (e.g. ~/.codex-personal, ~/.codex-work)',
     defaultPathHint: '~/.codex',
     description: 'Reads sessions/*.jsonl & session_index.jsonl plus optional wham/usage sync.'

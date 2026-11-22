@@ -1,5 +1,5 @@
 ================================================================================
-AI USAGE TRACKER (v0.1.0)
+AI USAGE TRACKER (v0.1.1)
 Multi-Account Desktop Widget for Claude Code, Antigravity, Gemini & Codex
 ================================================================================
 
@@ -20,11 +20,11 @@ Download the latest Windows release from GitHub:
   https://github.com/yodharin-monplub/ai-usage-tracker/releases/latest
 
 Choose either file:
-  * AI-Tracker-0.1.0-portable.exe
+  * AI-Tracker-0.1.1-portable.exe
       Standalone portable app. Download anywhere on your PC and double-click
       to run immediately (no installation required).
 
-  * AI-Tracker-Setup-0.1.0.exe
+  * AI-Tracker-Setup-0.1.1.exe
       Standard Windows installer. Creates Start Menu and Desktop shortcuts.
 
 Windows SmartScreen Note:

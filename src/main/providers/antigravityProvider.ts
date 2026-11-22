@@ -102,7 +102,7 @@ async function readConversationSummaries(dbPath: string): Promise<ConversationSu
 
       const agentName = typeof row[3] === 'string' && row[3].trim() ? row[3].trim() : '';
       const source = typeof row[4] === 'string' && row[4].trim() ? row[4].trim() : '';
-      const sourceLabel = agentName || source || 'antigravity-agent';
+      const sourceLabel = agentName || source || 'antigravity-session';
 
       rows.push({
         stepCount,
@@ -124,6 +124,8 @@ export class AntigravityProvider implements UsageProviderAdapter {
     const metrics = createEmptyMetrics();
     const bySource = new Map<string, ModelUsageItem>();
     let hasLocalData = false;
+    let oldestRollingMs = Infinity;
+    let oldestWeekMs = Infinity;
 
     const rollingStartMs = ctx.nowMs - account.limits.rollingWindowHours * 3_600_000;
     const todayStartMs = getStartOfLocalDayMs(ctx.nowMs);
@@ -140,11 +142,14 @@ export class AntigravityProvider implements UsageProviderAdapter {
           }
           hasLocalData = true;
           metrics.weekSteps += item.stepCount;
+          if (item.modifiedMs < oldestWeekMs) oldestWeekMs = item.modifiedMs;
+
           if (item.modifiedMs >= todayStartMs) {
             metrics.todaySteps += item.stepCount;
           }
           if (item.modifiedMs >= rollingStartMs) {
             metrics.rollingSteps += item.stepCount;
+            if (item.modifiedMs < oldestRollingMs) oldestRollingMs = item.modifiedMs;
           }
 
           const prev = bySource.get(item.sourceLabel) ?? {
@@ -174,11 +179,14 @@ export class AntigravityProvider implements UsageProviderAdapter {
           }
           hasLocalData = true;
           metrics.weekRequests += 1;
+          if (ev.timestampMs < oldestWeekMs) oldestWeekMs = ev.timestampMs;
+
           if (ev.timestampMs >= todayStartMs) {
             metrics.todayRequests += 1;
           }
           if (ev.timestampMs >= rollingStartMs) {
             metrics.rollingRequests += 1;
+            if (ev.timestampMs < oldestRollingMs) oldestRollingMs = ev.timestampMs;
           }
         }
       }
@@ -191,13 +199,23 @@ export class AntigravityProvider implements UsageProviderAdapter {
       }
     }
 
+    const rollingResetAtIso =
+      oldestRollingMs < Infinity
+        ? new Date(oldestRollingMs + account.limits.rollingWindowHours * 3_600_000).toISOString()
+        : undefined;
+    const weeklyResetAtIso =
+      oldestWeekMs < Infinity
+        ? new Date(oldestWeekMs + 7 * 86_400_000).toISOString()
+        : undefined;
+
     const resolved = resolveQuotas(
       account,
       metrics,
       undefined,
       undefined,
       ctx.nowMs,
-      hasLocalData
+      hasLocalData,
+      { rollingResetAtIso, weeklyResetAtIso }
     );
 
     const hasAnyData = hasLocalData || Boolean(account.manualSnapshot);

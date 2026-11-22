@@ -54,7 +54,9 @@ export function AccountModal({
     seed?.limits.rollingLimitValue ?? startMeta.defaultLimitValue
   );
   const [weeklyLimitValue, setWeeklyLimitValue] = useState<string>(
-    seed?.limits.weeklyLimitValue ? String(seed.limits.weeklyLimitValue) : ''
+    seed?.limits.weeklyLimitValue
+      ? String(seed.limits.weeklyLimitValue)
+      : String(startMeta.defaultWeeklyLimitValue)
   );
   const [pinnedToWidget, setPinnedToWidget] = useState(
     seed?.pinnedToWidget ?? true
@@ -72,6 +74,7 @@ export function AccountModal({
       setRollingWindowHours(nextMeta.defaultRollingHours);
       setRollingLimitMetric(nextMeta.defaultLimitMetric);
       setRollingLimitValue(nextMeta.defaultLimitValue);
+      setWeeklyLimitValue(String(nextMeta.defaultWeeklyLimitValue));
       if (nextProvider === 'antigravity') {
         setLiveSyncEnabled(false);
       }
