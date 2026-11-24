@@ -4,6 +4,7 @@ import {
   ClipboardPaste,
   Copy,
   Download,
+  Lock,
   Minimize2,
   Minus,
   Pencil,
@@ -305,11 +306,24 @@ export function ExpandedDashboard({
                         </div>
 
                         <div className="row-center">
-                          <span className={`source-tag ${snap?.status ?? ''}`}>
-                            {snap?.status === 'rate-limited'
-                              ? '429 Cooldown'
-                              : snap?.sourceUsed ?? acc.mode}
-                          </span>
+                          {acc.authType === 'direct-signin' ? (
+                            <span
+                              className={`source-tag ${acc.directAuthStatus === 'signed-in' ? 'ok' : 'error'}`}
+                              title={`Direct In-App Login: ${acc.directAuthEmail || acc.accountHint || 'Isolated'}`}
+                            >
+                              🔒 {acc.directAuthEmail ? acc.directAuthEmail.split('@')[0] : 'Direct'}
+                            </span>
+                          ) : acc.hasSecretToken ? (
+                            <span className="source-tag ok" title="API Key / Token stored in DPAPI">
+                              🔑 Token
+                            </span>
+                          ) : (
+                            <span className={`source-tag ${snap?.status ?? ''}`}>
+                              {snap?.status === 'rate-limited'
+                                ? '429 Cooldown'
+                                : snap?.sourceUsed ?? acc.mode}
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -462,6 +476,15 @@ export function ExpandedDashboard({
                           Updated {formatRelativeAge(snap?.fetchedAt, nowMs)}
                         </span>
                         <div className="row-center">
+                          {acc.authType === 'direct-signin' && acc.directAuthStatus !== 'signed-in' && (
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={() => onEditAccount(acc)}
+                              title="Re-authenticate direct session"
+                            >
+                              <Lock size={11} /> Re-login
+                            </button>
+                          )}
                           <button
                             className="btn btn-sm"
                             onClick={() => onRefreshOne(acc.id)}
@@ -505,6 +528,9 @@ export function ExpandedDashboard({
                 <ScanSearch size={13} /> Auto-Scan Local Profiles
               </button>
               <button className="btn btn-sm btn-primary" onClick={() => onAddAccount()}>
+                <Lock size={13} /> + Direct Sign-In
+              </button>
+              <button className="btn btn-sm" onClick={() => onAddAccount()}>
                 <Plus size={13} /> Add Account
               </button>
             </div>
@@ -596,7 +622,13 @@ export function ExpandedDashboard({
                       <div style={{ minWidth: 0 }}>
                         <div className="row-center">
                           <span style={{ fontWeight: 600 }}>{acc.label}</span>
-                          <span className="source-tag">{acc.mode}</span>
+                          {acc.authType === 'direct-signin' ? (
+                            <span className={`source-tag ${acc.directAuthStatus === 'signed-in' ? 'ok' : 'error'}`}>
+                              🔒 {acc.directAuthEmail || 'Direct Sign-In'}
+                            </span>
+                          ) : (
+                            <span className="source-tag">{acc.mode}</span>
+                          )}
                           {acc.liveSyncEnabled && (
                             <span className="source-tag">Live Sync</span>
                           )}

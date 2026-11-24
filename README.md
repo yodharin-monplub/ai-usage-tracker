@@ -11,19 +11,21 @@ A lightweight, obsidian-themed Windows desktop widget & system tray application 
 
 ## Features
 
-- **Multi-Account Support**: Track unlimited accounts per provider (e.g., Personal Pro, Work Team, Client workspaces) side-by-side in one floating widget.
-- **Floating Mini Widget + Expanded Dashboard**: Compact always-on-top widget with configurable opacity, provider filters, and 1-second live reset countdowns, expandable into a full multi-account management dashboard.
+- **In-App Direct Sign-In (Multi-Account)**: Sign in directly inside the app using isolated Electron session partitions (`persist:account-<id>`). Account 1 and Account 2 never share cookies or overwrite each other. View all your account quotas concurrently!
+- **Multi-Account Concurrent Dashboard**: Track unlimited accounts per provider (e.g. Personal Pro, Work Team, Client workspaces) side-by-side in one floating widget.
+- **Floating Mini Widget + Expanded Dashboard**: Compact always-on-top widget with configurable opacity, provider filters, 5h & 7d progress bars, and 1-second live reset countdowns, expandable into a full multi-account management dashboard.
 - **Windows System Tray Integration**: Minimize/close to tray with quick toggles for Mini/Expanded mode, Refresh All, Always on Top, and live tooltip summary.
+- **Instant Credential Verification**: Test any OAuth token or API key directly with live quota feedback (5h % and 7d % verification).
 - **Hybrid Data Collection**:
   - **Local Log Parsing (Offline & Read-Only)**:
     - *Claude Code*: Deduplicates streaming entries in `~/.claude*/projects/**/*.jsonl` for 5h / today / 7d tokens, requests, models, and USD estimates.
     - *Antigravity*: Reads `conversation_summaries.db` (in-memory via pure-WASM `sql.js`, never locking live files) + `history.jsonl` for rolling steps, prompts, and agent breakdown.
     - *Gemini*: Reads `~/.gemini*/tmp/*/chats/*.jsonl` and legacy `.json` session files.
     - *Codex*: Reads `~/.codex*/sessions/**/*.jsonl`, `archived_sessions/**/*.jsonl` (including embedded `rate_limits`), and `session_index.jsonl`.
-  - **Opt-In Live Quota Sync**: Optional OAuth quota checks (Claude `oauth/usage`, Codex `wham/usage`, Gemini `retrieveUserQuota`) guarded by a 5-minute cooldown and automatic HTTP 429 exponential backoff.
+  - **Opt-In Live Quota Sync**: OAuth quota checks (Claude `oauth/usage`, Codex `wham/usage`, Gemini `retrieveUserQuota`) guarded by a 5-minute cooldown and automatic HTTP 429 exponential backoff.
   - **Paste `/usage` Snapshot Parser**: Paste output directly from `/usage`, `/quota`, `/status`, or `/stats` to extract percentages, model pools, and reset countdowns immediately.
 - **Auto-Discovery**: One-click scan detects existing CLI profile directories on your machine without touching credentials.
-- **Secure Secret Storage**: Optional override tokens are encrypted with Windows DPAPI (`safeStorage`) and stored outside the repo in `%APPDATA%\ai-tracker`.
+- **Secure Secret Storage**: Credentials and tokens are encrypted with Windows DPAPI (`safeStorage`) and stored in `%APPDATA%\ai-tracker`.
 
 ---
 
@@ -31,8 +33,8 @@ A lightweight, obsidian-themed Windows desktop widget & system tray application 
 
 Prebuilt Windows binaries are available on the [GitHub Releases](https://github.com/yodharin-monplub/ai-usage-tracker/releases/latest) page:
 
-- **`AI-Tracker-0.1.1-portable.exe`** — Standalone portable app (download & double-click, no installation or Node.js required).
-- **`AI-Tracker-Setup-0.1.1.exe`** — Standard Windows installer with Start Menu and Desktop shortcuts.
+- **`AI-Tracker-0.2.0-portable.exe`** — Standalone portable app (download & double-click, no installation or Node.js required).
+- **`AI-Tracker-Setup-0.2.0.exe`** — Standard Windows installer with Start Menu and Desktop shortcuts.
 - **`README.txt`** — Plain-text user guide included alongside the release binaries.
 
 > **SmartScreen Note:** Because the open-source Windows build is unsigned, Windows SmartScreen may ask for confirmation on first run (**More info → Run anyway**).

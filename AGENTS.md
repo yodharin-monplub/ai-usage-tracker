@@ -40,6 +40,7 @@ Z:\Application\ai_tracker\
 │   ├── main/                        # Electron main process (Node + TypeScript)
 │   │   ├── index.ts                 # Bootstrap, single-instance lock, first-run seeding, smoke mode
 │   │   ├── store.ts                 # Atomic JSON store + safeStorage DPAPI secret wrapper
+│   │   ├── authManager.ts           # Isolated Electron session partitions (persist:account-<id>), popup auth, verify
 │   │   ├── discovery.ts             # Multi-profile auto-discovery (~/.claude*, ~/.codex*, ~/.gemini*)
 │   │   ├── aggregator.ts            # Parallel isolated polling, timer scheduler, tray tooltip builder
 │   │   ├── windowManager.ts         # Frameless always-on-top Mini/Expanded window & bounds clamping

@@ -210,14 +210,23 @@ export function MiniWidget({
                     </span>
                   </div>
                   <div className="row-center" style={{ flexShrink: 0 }}>
-                    <span
-                      className={`source-tag ${snap?.status ?? ''}`}
-                      title={snap?.statusMessage || snap?.sourceUsed || 'local'}
-                    >
-                      {snap?.status === 'rate-limited'
-                        ? '429'
-                        : snap?.sourceUsed ?? 'local'}
-                    </span>
+                    {acc.authType === 'direct-signin' ? (
+                      <span
+                        className={`source-tag ${acc.directAuthStatus === 'signed-in' ? 'ok' : 'error'}`}
+                        title={`Direct In-App Auth: ${acc.directAuthEmail || acc.accountHint || 'Connected'}`}
+                      >
+                        🔒 {snap?.sourceUsed ?? 'live'}
+                      </span>
+                    ) : (
+                      <span
+                        className={`source-tag ${snap?.status ?? ''}`}
+                        title={snap?.statusMessage || snap?.sourceUsed || 'local'}
+                      >
+                        {snap?.status === 'rate-limited'
+                          ? '429'
+                          : snap?.sourceUsed ?? 'local'}
+                      </span>
+                    )}
                     <button
                       className="icon-btn"
                       style={{ padding: 3 }}

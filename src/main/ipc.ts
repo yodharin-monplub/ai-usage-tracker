@@ -1,6 +1,16 @@
 import { dialog, ipcMain } from 'electron';
-import type { AccountConfig, AppSettings, DiscoveredProfile, ManualQuotaSnapshot, WidgetMode } from '../shared/types';
+import type {
+  AccountConfig,
+  AppSettings,
+  CredentialVerifyResult,
+  DirectAuthResult,
+  DiscoveredProfile,
+  ManualQuotaSnapshot,
+  ProviderId,
+  WidgetMode
+} from '../shared/types';
 import type { UsageAggregator } from './aggregator';
+import { AuthManager } from './authManager';
 import { createAccountFromDiscovered, discoverLocalProfiles } from './discovery';
 import type { AppStore } from './store';
 import type { TrayManager } from './trayManager';
@@ -10,8 +20,11 @@ export function registerIpcHandlers(
   store: AppStore,
   aggregator: UsageAggregator,
   windowManager: WindowManager,
-  trayManager: TrayManager | null
+  trayManager: TrayManager | null,
+  authManager?: AuthManager
 ): void {
+  const auth = authManager ?? new AuthManager({ store });
+
   ipcMain.handle('accounts:list', () => store.getAccounts());
 
   ipcMain.handle('accounts:save', async (_event, account: AccountConfig) => {
@@ -21,7 +34,8 @@ export function registerIpcHandlers(
     return saved;
   });
 
-  ipcMain.handle('accounts:delete', (_event, id: string) => {
+  ipcMain.handle('accounts:delete', async (_event, id: string) => {
+    await auth.signOut(id);
     store.deleteAccount(id);
     aggregator.removeAccount(id);
     trayManager?.updateTooltip();
@@ -35,6 +49,35 @@ export function registerIpcHandlers(
   ipcMain.handle('accounts:clearSecret', async (_event, id: string) => {
     store.clearAccountSecret(id);
     await aggregator.refreshOne(id);
+  });
+
+  ipcMain.handle(
+    'accounts:startDirectLogin',
+    async (_event, accountId: string, provider: ProviderId): Promise<DirectAuthResult> => {
+      const res = await auth.startDirectLogin(accountId, provider);
+      if (res.success) {
+        await aggregator.refreshOne(accountId);
+        trayManager?.updateTooltip();
+      }
+      return res;
+    }
+  );
+
+  ipcMain.handle('accounts:cancelDirectLogin', (_event, accountId: string) => {
+    auth.cancelDirectLogin(accountId);
+  });
+
+  ipcMain.handle(
+    'accounts:verifyCredentials',
+    async (_event, provider: ProviderId, token: string): Promise<CredentialVerifyResult> => {
+      return await auth.verifyCredentials(provider, token);
+    }
+  );
+
+  ipcMain.handle('accounts:signOut', async (_event, accountId: string) => {
+    await auth.signOut(accountId);
+    await aggregator.refreshOne(accountId);
+    trayManager?.updateTooltip();
   });
 
   ipcMain.handle('accounts:discover', () =>

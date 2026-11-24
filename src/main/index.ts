@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { app, safeStorage } from 'electron';
 import { UsageAggregator } from './aggregator';
+import { AuthManager } from './authManager';
 import { createAccountFromDiscovered, discoverLocalProfiles } from './discovery';
 import { registerIpcHandlers } from './ipc';
 import { AppStore, createElectronSecretCipher } from './store';
@@ -19,6 +20,7 @@ let store: AppStore | null = null;
 let aggregator: UsageAggregator | null = null;
 let windowManager: WindowManager | null = null;
 let trayManager: TrayManager | null = null;
+let authManager: AuthManager | null = null;
 let smokeTempDir: string | null = null;
 
 async function bootstrap(): Promise<void> {
@@ -31,6 +33,7 @@ async function bootstrap(): Promise<void> {
   store = new AppStore(dataDir, cipher);
   aggregator = new UsageAggregator(store);
   windowManager = new WindowManager(store);
+  authManager = new AuthManager({ store });
 
   if (!isSmokeTest) {
     // Seed auto-discovered profiles once on fresh install
@@ -50,7 +53,7 @@ async function bootstrap(): Promise<void> {
     trayManager.init(appRootDir);
   }
 
-  registerIpcHandlers(store, aggregator, windowManager, trayManager);
+  registerIpcHandlers(store, aggregator, windowManager, trayManager, authManager);
 
   const win = windowManager.createWindow(appRootDir, isSmokeTest);
 

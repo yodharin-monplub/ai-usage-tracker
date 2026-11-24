@@ -1,6 +1,6 @@
 {
   "name": "ai-usage-tracker",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Multi-account desktop widget AI usage tracker for Claude Code, Antigravity, Gemini, and Codex",
   "license": "MIT",
   "author": "Yodharin monplub <yodharinmonlub@actuarialtutor.org>",

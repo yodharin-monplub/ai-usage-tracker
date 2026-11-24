@@ -6,6 +6,7 @@ import type {
   AppSettings,
   DiscoveredProfile,
   ManualQuotaSnapshot,
+  ProviderId,
   WidgetMode
 } from '../shared/types';
 
@@ -16,6 +17,14 @@ const api: AiTrackerApi = {
   accountsSetSecret: (id: string, secret: string) =>
     ipcRenderer.invoke('accounts:setSecret', id, secret),
   accountsClearSecret: (id: string) => ipcRenderer.invoke('accounts:clearSecret', id),
+  accountsStartDirectLogin: (accountId: string, provider: ProviderId) =>
+    ipcRenderer.invoke('accounts:startDirectLogin', accountId, provider),
+  accountsCancelDirectLogin: (accountId: string) =>
+    ipcRenderer.invoke('accounts:cancelDirectLogin', accountId),
+  accountsVerifyCredentials: (provider: ProviderId, token: string) =>
+    ipcRenderer.invoke('accounts:verifyCredentials', provider, token),
+  accountsSignOut: (accountId: string) =>
+    ipcRenderer.invoke('accounts:signOut', accountId),
   accountsDiscover: () => ipcRenderer.invoke('accounts:discover'),
   accountsSeedDiscovered: (profiles: DiscoveredProfile[]) =>
     ipcRenderer.invoke('accounts:seedDiscovered', profiles),

@@ -111,6 +111,27 @@ export interface ManualQuotaSnapshot {
   rawText?: string;
 }
 
+export type AuthType = 'direct-signin' | 'api-key' | 'cli-profile' | 'manual';
+
+export type DirectAuthStatus = 'signed-in' | 'expired' | 'signed-out';
+
+export interface DirectAuthResult {
+  success: boolean;
+  token?: string;
+  email?: string;
+  accountHint?: string;
+  provider: ProviderId;
+  message: string;
+}
+
+export interface CredentialVerifyResult {
+  valid: boolean;
+  email?: string;
+  message: string;
+  primaryQuota?: QuotaWindow;
+  secondaryQuota?: QuotaWindow;
+}
+
 export interface AccountConfig {
   id: string;
   provider: ProviderId;
@@ -120,6 +141,11 @@ export interface AccountConfig {
   profileDir: string;
   liveSyncEnabled: boolean;
   hasSecretToken?: boolean;
+  authType?: AuthType;
+  directAuthEmail?: string;
+  directAuthStatus?: DirectAuthStatus;
+  directAuthAt?: string;
+  partitionId?: string;
   limits: AccountLimits;
   manualSnapshot?: ManualQuotaSnapshot;
   pinnedToWidget: boolean;
@@ -218,6 +244,10 @@ export interface AiTrackerApi {
   accountsDelete: (id: string) => Promise<void>;
   accountsSetSecret: (id: string, secret: string) => Promise<void>;
   accountsClearSecret: (id: string) => Promise<void>;
+  accountsStartDirectLogin: (accountId: string, provider: ProviderId) => Promise<DirectAuthResult>;
+  accountsCancelDirectLogin: (accountId: string) => Promise<void>;
+  accountsVerifyCredentials: (provider: ProviderId, token: string) => Promise<CredentialVerifyResult>;
+  accountsSignOut: (accountId: string) => Promise<void>;
   accountsDiscover: () => Promise<DiscoveredProfile[]>;
   accountsSeedDiscovered: (profiles: DiscoveredProfile[]) => Promise<AccountConfig[]>;
   accountsApplySnapshot: (id: string, snapshot: ManualQuotaSnapshot) => Promise<AccountConfig>;
